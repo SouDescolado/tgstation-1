@@ -37,11 +37,13 @@
 	var/delivery_icon = "deliverycloset" //which icon to use when packagewrapped. null to be unwrappable.
 	var/anchorable = TRUE
 	var/icon_welded = "welded"
+	var/init_barcode = 0 //used to edit contents of the starting lockers without map edit
 
 
 /obj/structure/closet/Initialize(mapload)
 	if(mapload && !opened)		// if closed, any item at the crate's loc is put in the contents
-		addtimer(CALLBACK(src, .proc/take_contents), 0)
+		if(!init_barcode) //It wont grab things if it has a barcode
+			addtimer(CALLBACK(src, .proc/take_contents), 0)
 	. = ..()
 	update_icon()
 	PopulateContents()
@@ -53,7 +55,24 @@
 
 //USE THIS TO FILL IT, NOT INITIALIZE OR NEW
 /obj/structure/closet/proc/PopulateContents()
+	if(init_barcode)
+		put_things_in_it(init_barcode)
 	return
+	
+/obj/structure/closet/put_things_in_it(barcd)
+	if(barcd = 1) //Set barcode to 1 to get from a random pool of items. Multiple random pools can be defined around here.
+		barcd = pick(list(123456,123457,123789))
+	//how to make it less snowflake?
+	list_items() = WHATISINSIDE[0] //A list of items, somewhere. Same size as list_prob
+	list_prob() = WHATISINSIDE[1] //A list of probabilities, somewhere. Same size as list_items
+	anotherone() = WHATISINSIDE[2] //The next one. Optional
+	for(var/i in list_prob)
+		if prob(listprob[i])
+			putthing(list_items[i])
+	if(anotherone && anotherone > barcd) //The next one MUST be higher. Prevents loop but allows for chaining.
+		put_things_in_it(anotherone)
+			
+
 
 /obj/structure/closet/Destroy()
 	dump_contents()
@@ -104,7 +123,9 @@
 		var/mob/living/L = user
 		if(HAS_TRAIT(L, TRAIT_SKITTISH))
 			. += "<span class='notice'>Ctrl-Shift-click [src] to jump inside.</span>"
-
+	if(init_barcode)
+		. += "<span class='notice'>There is a Nanotrasen barcode on it. It says <b>[init_barcode]</b>.</span>"
+		
 /obj/structure/closet/CanAllowThrough(atom/movable/mover, turf/target)
 	. = ..()
 	if(wall_mounted)
